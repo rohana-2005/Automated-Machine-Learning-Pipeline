@@ -38,9 +38,3 @@ python app.py
 
 ---
 
-🧰 Tech Stack
-Python
-Flask (Backend)
-HTML/CSS (Frontend)
-Scikit-learn (ML Models & Evaluation)
-Pandas & NumPy (Data Processing)
