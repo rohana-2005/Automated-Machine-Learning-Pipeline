@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Performance Results ({{ task_type.capitalize() }})</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f8fafc;
+            min-height: 100vh;
+            padding: 20px;
+            color: #374151;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1e40af;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: #64748b;
+            font-size: 1.1rem;
+        }
+
+        .section {
+            background: white;
+            margin-bottom: 30px;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.08);
+            border: 1px solid #e2e8f0;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .section:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 20px 40px rgba(59, 130, 246, 0.12);
+        }
+
+        .section h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1e40af;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+        }
+
+        .section h2::before {
+            content: '';
+            width: 4px;
+            height: 24px;
+            background: linear-gradient(135deg, #3b82f6, #1e40af);
+            border-radius: 2px;
+            margin-right: 12px;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .metric {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .metric::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: #3b82f6;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .metric:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+        }
+
+        .metric-label {
+            font-size: 0.9rem;
+            color: #64748b;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+
+        .metric-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #374151;
+        }
+
+        .best-model {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+            border: 1px solid #e2e8f0;
+            border-left: 4px solid #3b82f6;
+            position: relative;
+        }
+
+        .best-model::before {
+            content: '★';
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 1.2rem;
+            color: #3b82f6;
+        }
+
+        .best-model-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 4px;
+        }
+
+        .best-model-details {
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .button {
+            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
+        }
+
+        .button:active {
+            transform: translateY(0);
+        }
+
+        .button::before {
+            content: '';
+            margin-right: 0;
+        }
+
+        .chart-container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            background: white;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .chart-container img {
+            width: 100%;
+            height: auto;
+            max-height: 400px;
+            object-fit: contain;
+            display: block;
+        }
+
+        .stats-summary {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .stats-item {
+            text-align: center;
+        }
+
+        .stats-item-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1e40af;
+        }
+
+        .stats-item-label {
+            font-size: 0.85rem;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .divider {
+            width: 1px;
+            height: 40px;
+            background: #cbd5e1;
+        }
+
+        @media (max-width: 768px) {
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-summary {
+                flex-direction: column;
+                gap: 16px;
+            }
+            
+            .divider {
+                width: 40px;
+                height: 1px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .section {
+                padding: 20px;
+            }
+        }
+
+        .pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: .8;
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>ML Pipeline Results</h1>
+            <p>{{ task_type.capitalize() }} Model Performance Dashboard</p>
+        </div>
+
+        <div class="section fade-in">
+            <h2>Data Processing Summary</h2>
+            <div class="metrics-grid">
+                <div class="metric">
+                    <div class="metric-label">Original Rows</div>
+                    <div class="metric-value">{{ original_rows }}</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Cleaned Rows</div>
+                    <div class="metric-value">{{ cleaned_rows }}</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Missing Values</div>
+                    <div class="metric-value">{{ missing_values }}</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Removed Rows</div>
+                    <div class="metric-value">{{ removed_rows }}</div>
+                </div>
+            </div>
+
+            <div class="stats-summary">
+                <div class="stats-item">
+                    <div class="stats-item-value">{{ ((cleaned_rows / original_rows) * 100)|round(1) }}%</div>
+                    <div class="stats-item-label">Data Retained</div>
+                </div>
+                <div class="divider"></div>
+                <div class="stats-item">
+                    <div class="stats-item-value">{{ ((removed_rows / original_rows) * 100)|round(1) }}%</div>
+                    <div class="stats-item-label">Data Cleaned</div>
+                </div>
+                <div class="divider"></div>
+                <div class="stats-item">
+                    <div class="stats-item-value">{{ cleaned_rows - missing_values }}</div>
+                    <div class="stats-item-label">Complete Records</div>
+                </div>
+            </div>
+
+            
+
+            {% if best_model %}
+                <div class="best-model">
+                    <div class="best-model-title">Best Performing Model</div>
+                    <div class="best-model-details">
+                        <b>{{ best_model }}</b> achieved the {% if task_type == 'classification' %}highest accuracy{% else %}lowest mean squared error{% endif %} in this {{ task_type }} task
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="section fade-in">
+            <h2>Model Performance Comparison</h2>
+            <div class="chart-container">
+                <img src="data:image/png;base64,{{ plot_data }}" alt="Model Comparison Chart">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Add some interactive enhancements
+        document.addEventListener('DOMContentLoaded', function() {
+            // Animate metrics on scroll
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.style.animationDelay = Math.random() * 0.3 + 's';
+                        entry.target.classList.add('fade-in');
+                    }
+                });
+            });
+
+            document.querySelectorAll('.metric').forEach(metric => {
+                observer.observe(metric);
+            });
+
+            // Add click effect to metrics
+            document.querySelectorAll('.metric').forEach(metric => {
+                metric.addEventListener('click', function() {
+                    this.classList.add('pulse');
+                    setTimeout(() => {
+                        this.classList.remove('pulse');
+                    }, 2000);
+                });
+            });
+        });
+    </script>
+    <a href="/predict" class="button">Go to Predict</a>
+    <a href="/" class="button">Run New Analysis</a>
+</body>
+</html>

@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Model Prediction</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f8fafc;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #374151;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.08);
+            border: 1px solid #e2e8f0;
+            padding: 40px;
+            width: 100%;
+            max-width: 600px;
+            position: relative;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #1e40af;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            color: #64748b;
+            font-size: 0.95rem;
+            font-weight: 400;
+        }
+
+        .form-section {
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            text-transform: capitalize;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+            background: #ffffff;
+            color: #374151;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-group input:hover:not(:disabled) {
+            border-color: #cbd5e1;
+        }
+
+        .form-group input:disabled {
+            background: #f1f5f9;
+            color: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 14px 24px;
+            background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-top: 8px;
+        }
+
+        .submit-btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 20px rgba(59, 130, 246, 0.3);
+        }
+
+        .submit-btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .submit-btn:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .disabled-form {
+            opacity: 0.6;
+            pointer-events: none;
+        }
+
+        .error-message {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+        }
+
+        .error-message::before {
+            content: '⚠';
+            margin-right: 8px;
+            font-size: 1.1rem;
+        }
+
+        .no-model-state {
+            text-align: center;
+            padding: 40px 20px;
+        }
+
+        .no-model-icon {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            background: #f1f5f9;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            font-size: 2rem;
+        }
+
+        .no-model-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+
+        .no-model-description {
+            color: #64748b;
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+
+        .train-model-btn {
+            display: inline-flex;
+            align-items: center;
+            padding: 12px 24px;
+            background: white;
+            color: #1e40af;
+            border: 2px solid #3b82f6;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .train-model-btn:hover {
+            background: #3b82f6;
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .train-model-btn::before {
+            content: '🚀';
+            margin-right: 8px;
+        }
+
+        .prediction-result {
+            background: white;
+            border: 2px solid #22c55e;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 24px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .prediction-result::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #22c55e, #16a34a);
+        }
+
+        .prediction-result h2 {
+            color: #16a34a;
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .prediction-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #374151;
+            padding: 10px 20px;
+            background: #f0fdf4;
+            border-radius: 8px;
+            display: inline-block;
+            margin-top: 8px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+        }
+
+        .feature-count {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 20px;
+            text-align: center;
+            color: #1e40af;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 24px;
+                margin: 10px;
+            }
+            
+            .header h1 {
+                font-size: 1.75rem;
+            }
+            
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .processing {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .processing .submit-btn {
+            background: #94a3b8;
+        }
+
+        .spinner {
+            display: none;
+            width: 16px;
+            height: 16px;
+            border: 2px solid #ffffff;
+            border-top: 2px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 8px;
+        }
+
+        .processing .spinner {
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Model Prediction</h1>
+            <p>Enter feature values to get predictions from your trained model</p>
+        </div>
+        
+        {% if not model_exists %}
+            <div class="no-model-state">
+                <div class="no-model-icon">🤖</div>
+                <div class="no-model-title">No Model Available</div>
+                <div class="no-model-description">
+                    You need to train a machine learning model first before making predictions. 
+                    Please upload a dataset and complete the training process.
+                </div>
+                <a href="/" class="train-model-btn">Train New Model</a>
+            </div>
+        {% else %}
+            <form method="POST" id="predictionForm" class="{% if not model_exists %}disabled-form{% endif %}">
+                {% if feature_names %}
+                    <div class="feature-count">
+                        Model trained with {{ feature_names|length }} features
+                    </div>
+                    
+                    <div class="form-section">
+                        <div class="form-grid">
+                            {% for feature in feature_names %}
+                                <div class="form-group">
+                                    <label for="{{ feature }}">{{ feature.replace('_', ' ') }}</label>
+                                    <input type="text" 
+                                           id="{{ feature }}" 
+                                           name="{{ feature }}" 
+                                           placeholder="Enter {{ feature.replace('_', ' ').lower() }}"
+                                           required>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="submit-btn" id="submitBtn" {% if not model_exists %}disabled{% endif %}>
+                        <div class="spinner"></div>
+                        <span id="submitText">Generate Prediction</span>
+                    </button>
+                {% else %}
+                    <div class="error-message">
+                        No features available. Please train a model first with a CSV file.
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="placeholder">Placeholder Input</label>
+                        <input type="text" id="placeholder" name="placeholder" disabled>
+                    </div>
+                    
+                    <button type="submit" class="submit-btn" disabled>Generate Prediction</button>
+                {% endif %}
+            </form>
+        {% endif %}
+
+        {% if prediction is defined %}
+            <div class="prediction-result">
+                <h2>Prediction Result</h2>
+                <div class="prediction-value">{{ prediction }}</div>
+            </div>
+        {% elif not model_exists %}
+            <div class="error-message" style="margin-top: 20px;">
+                Please train a model first before making predictions.
+            </div>
+        {% endif %}
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('predictionForm');
+            const submitBtn = document.getElementById('submitBtn');
+            const submitText = document.getElementById('submitText');
+
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    // Add processing state
+                    document.body.classList.add('processing');
+                    if (submitText) {
+                        submitText.textContent = 'Processing...';
+                    }
+                });
+            }
+
+            // Add input validation and formatting
+            const inputs = document.querySelectorAll('input[type="text"]:not([disabled])');
+            inputs.forEach(input => {
+                input.addEventListener('input', function(e) {
+                    // Allow only numbers and decimal points for numerical inputs
+                    let value = e.target.value;
+                    if (value && !isNaN(value)) {
+                        e.target.style.borderColor = '#22c55e';
+                    } else if (value) {
+                        e.target.style.borderColor = '#ef4444';
+                    } else {
+                        e.target.style.borderColor = '#e2e8f0';
+                    }
+                });
+
+                input.addEventListener('blur', function(e) {
+                    e.target.style.borderColor = '#e2e8f0';
+                });
+            });
+        });
+    </script>
+    <a href="/" class="train-model-btn" style="position: absolute; bottom: 20px; right: 20px;">Back</a>
+     
+</body>
+</html>
