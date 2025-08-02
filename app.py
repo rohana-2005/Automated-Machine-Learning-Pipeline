@@ -19,6 +19,8 @@ import io
 import base64
 import pickle
 
+display_info = []
+
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'Uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
@@ -26,14 +28,18 @@ app.config['MODEL_FOLDER'] = 'models'
 app.secret_key = 'your_secret_key'  # Replace with a secure key in production
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['MODEL_FOLDER'], exist_ok=True)
+display_info.append("Initialized Flask app and created upload/model directories")
 
 # Global storage for last trained model metadata
 model_metadata = {'feature_names': [], 'task_type': None, 'is_text_data': False}
+display_info.append("Initialized model metadata")
 
 def preprocess_data(df, task_type, target_column):
+    display_info.append("Starting data preprocessing")
     original_rows = len(df)
     df = df.drop_duplicates()
     cleaned_rows = len(df)
+    display_info.append(f"Removed duplicates: {original_rows - cleaned_rows} rows")
     
     # Handle missing values
     missing_values = df.isnull().sum().sum()
@@ -42,12 +48,14 @@ def preprocess_data(df, task_type, target_column):
             df.loc[:, col] = df[col].fillna(df[col].mean())
         else:
             df.loc[:, col] = df[col].fillna(df[col].mode()[0])
+    display_info.append(f"Handled {missing_values} missing values")
     
     # Track removed rows
     removed_rows = original_rows - cleaned_rows
     
     # Specialized preprocessing for spam.csv-like data
     if task_type == 'classification' and target_column == 'Category' and 'Message' in df.columns:
+        display_info.append("Detected spam classification task with text data")
         # Validate and clean Category column
         valid_labels = {'ham', 'spam'}
         invalid_labels = set(df['Category'].dropna()) - valid_labels
@@ -55,12 +63,14 @@ def preprocess_data(df, task_type, target_column):
             raise ValueError(f"Invalid labels found in Category: {invalid_labels}")
         # Create new spam column with integer labels
         df['spam'] = df['Category'].apply(lambda x: 1 if x == 'spam' else 0)
+        display_info.append("Converted Category to binary spam labels")
         # Use CountVectorizer for text data
         vectorizer = CountVectorizer(stop_words='english', max_features=2000)
         X = df['Message']
         X_vectorized = vectorizer.fit_transform(X)
         y = df['spam'].values
         feature_names = vectorizer.get_feature_names_out()
+        display_info.append("Applied CountVectorizer to text data")
         # Save vectorizer
         vectorizer_path = os.path.join(app.config['MODEL_FOLDER'], 'vectorizer.pkl')
         try:
@@ -68,26 +78,32 @@ def preprocess_data(df, task_type, target_column):
                 pickle.dump(vectorizer, f)
             if not os.path.exists(vectorizer_path):
                 raise IOError(f"Failed to create vectorizer file at {vectorizer_path}")
+            display_info.append("Saved vectorizer to file")
         except Exception as e:
             raise
         return X_vectorized, y, feature_names, original_rows, cleaned_rows, missing_values, removed_rows, True
     else:
+        display_info.append("Processing numerical/categorical data")
         # Numerical preprocessing
         categorical_cols = df.select_dtypes(include=['object']).columns
         if len(categorical_cols) > 0:
             df = pd.get_dummies(df, columns=categorical_cols)
+            display_info.append(f"Converted {len(categorical_cols)} categorical columns to dummy variables")
         
         feature_names = df.drop(columns=[target_column]).columns.tolist()
         X = df.drop(columns=[target_column])
         y = df[target_column]
+        display_info.append("Separated features and target variable")
         
         if len(X.columns) == 1:
             X = X.values.reshape(-1, 1)
         else:
             X = X.values
+        display_info.append("Converted features to numpy array")
         
         scaler = StandardScaler()
         X_scaled = scaler.fit_transform(X)
+        display_info.append("Applied StandardScaler to features")
         # Save scaler
         scaler_path = os.path.join(app.config['MODEL_FOLDER'], 'scaler.pkl')
         try:
@@ -95,14 +111,18 @@ def preprocess_data(df, task_type, target_column):
                 pickle.dump(scaler, f)
             if not os.path.exists(scaler_path):
                 raise IOError(f"Failed to create scaler file at {scaler_path}")
+            display_info.append("Saved scaler to file")
         except Exception as e:
             raise
         return X_scaled, y, feature_names, original_rows, cleaned_rows, missing_values, removed_rows, False
 
 def train_and_evaluate_models(X, y, task_type):
+    display_info.append("Starting model training and evaluation")
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+    display_info.append("Split data into training and testing sets")
     
     if task_type == 'classification' and model_metadata.get('is_text_data', False):
+        display_info.append("Training Naive Bayes for text classification")
         # Use Naive Bayes for spam classification
         model = MultinomialNB()
         model.fit(X_train, y_train)
@@ -114,8 +134,10 @@ def train_and_evaluate_models(X, y, task_type):
                 'Recall': recall_score(y_test, y_pred, average='weighted', zero_division=0)
             }
         }
+        display_info.append("Evaluated Naive Bayes model")
     else:
         if task_type == 'classification':
+            display_info.append("Training classification models")
             models = {
                 'Decision Tree': DecisionTreeClassifier(random_state=42),
                 'Random Forest': RandomForestClassifier(random_state=42),
@@ -123,6 +145,7 @@ def train_and_evaluate_models(X, y, task_type):
                 'SVM': SVC(random_state=42, probability=True)
             }
         else:  # regression
+            display_info.append("Training regression models")
             models = {
                 'Decision Tree': DecisionTreeRegressor(random_state=42),
                 'Random Forest': RandomForestRegressor(random_state=42),
@@ -133,6 +156,7 @@ def train_and_evaluate_models(X, y, task_type):
         for name, model in models.items():
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
+            display_info.append(f"Trained and evaluated {name} model")
             if task_type == 'classification':
                 metrics[name] = {
                     'Accuracy': accuracy_score(y_test, y_pred),
@@ -148,6 +172,7 @@ def train_and_evaluate_models(X, y, task_type):
     return metrics
 
 def plot_metrics(metrics, task_type):
+    display_info.append("Generating performance metrics plot")
     plt.figure(figsize=(10, 6))
     if task_type == 'classification':
         metrics_names = ['Accuracy', 'Precision', 'Recall']
@@ -210,6 +235,7 @@ def plot_metrics(metrics, task_type):
     image_png = buffer.getvalue()
     buffer.close()
     plt.close()
+    display_info.append("Saved plot as PNG")
     
     graphic = base64.b64encode(image_png).decode('utf-8')
     return graphic
@@ -217,49 +243,62 @@ def plot_metrics(metrics, task_type):
 @app.route('/', methods=['GET', 'POST'])
 def index():
     global df  # Declare global df
+    display_info.append("Handling request to index route")
     if request.method == 'POST':
         file = request.files.get('file')
         task_type = request.form.get('task_type')
         target_column = request.form.get('target_column')
+        display_info.append("Received POST request with file, task type, and target column")
         
         if not file or not task_type or not target_column:
+            display_info.append("Missing file, task type, or target column")
             return render_template('index.html', error='Please provide a CSV file, task type, and target column.')
         
         filename = secure_filename(file.filename)
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(file_path)
+        display_info.append(f"Saved uploaded file: {filename}")
         
         try:
             df = pd.read_csv(file_path)
+            display_info.append("Loaded CSV file into DataFrame")
             if target_column not in df.columns:
+                display_info.append("Target column not found in CSV")
                 return render_template('index.html', error='Target column not found in CSV.')
             
             # Reset model_metadata to avoid stale data
             model_metadata.clear()
             model_metadata.update({'feature_names': [], 'task_type': None, 'is_text_data': False})
+            display_info.append("Reset model metadata")
             
             # Clear models folder before preprocessing
             for model_file in os.listdir(app.config['MODEL_FOLDER']):
                 try:
                     file_path = os.path.join(app.config['MODEL_FOLDER'], model_file)
                     os.remove(file_path)
+                    display_info.append(f"Removed existing model file: {model_file}")
                 except Exception as e:
                     raise
             
             X, y, feature_names, original_rows, cleaned_rows, missing_values, removed_rows, is_text_data = preprocess_data(df, task_type, target_column)
+            display_info.append("Completed data preprocessing")
             metrics = train_and_evaluate_models(X, y, task_type)
+            display_info.append("Trained and evaluated models")
             plot_data = plot_metrics(metrics, task_type)
+            display_info.append("Generated metrics plot")
             metric_names = ['Accuracy', 'Precision', 'Recall'] if task_type == 'classification' else ['MSE', 'R2 Score']
             
             if task_type == 'classification' and is_text_data:
                 best_model = 'Naive Bayes'
                 model_obj = MultinomialNB()
                 model_obj.fit(X, y)
+                display_info.append("Selected and trained Naive Bayes as best model")
             else:
                 if task_type == 'classification':
                     best_model = max(metrics.items(), key=lambda x: x[1]['Accuracy'])[0]
                 else:
                     best_model = min(metrics.items(), key=lambda x: x[1]['MSE'])[0]
+                display_info.append(f"Selected {best_model} as best model based on metrics")
                 
                 model_map = {
                     'Decision Tree': DecisionTreeClassifier(random_state=42) if task_type == 'classification' else DecisionTreeRegressor(random_state=42),
@@ -270,11 +309,13 @@ def index():
                 }
                 model_obj = model_map[best_model]
                 model_obj.fit(X, y)
+                display_info.append(f"Trained {best_model} for final model")
             
             # Store metadata for prediction
             model_metadata['feature_names'] = feature_names
             model_metadata['task_type'] = task_type
             model_metadata['is_text_data'] = is_text_data
+            display_info.append("Stored model metadata for prediction")
             
             # Save the new best model
             model_path = os.path.join(app.config['MODEL_FOLDER'], f"{best_model.replace(' ', '_')}_model.pkl")
@@ -283,26 +324,33 @@ def index():
                     pickle.dump(model_obj, f)
                 if not os.path.exists(model_path):
                     raise IOError(f"Failed to create model file at {model_path}")
+                display_info.append(f"Saved best model: {best_model}")
             except Exception as e:
                 raise
             
+            display_info.append("Rendering results template")
             return render_template('results.html', metrics=metrics, plot_data=plot_data, task_type=task_type, 
                                  metric_names=metric_names, original_rows=original_rows, 
                                  cleaned_rows=cleaned_rows, missing_values=missing_values, 
-                                 removed_rows=removed_rows, best_model=best_model)
+                                 removed_rows=removed_rows, best_model=best_model,
+                                 display_info=display_info,)
         except Exception as e:
+            display_info.append(f"Error processing file: {str(e)}")
             return render_template('index.html', error=f'Error processing file: {str(e)}')
         finally:
             if os.path.exists(file_path):
                 try:
                     os.remove(file_path)
+                    display_info.append(f"Removed temporary file: {filename}")
                 except Exception as e:
                     raise
     
+    display_info.append("Rendering index template for GET request")
     return render_template('index.html')
 
 @app.route('/predict', methods=['GET', 'POST'])
 def predict():
+    display_info.append("Handling request to predict route")
     model_exists = len(os.listdir(app.config['MODEL_FOLDER'])) > 0
     model_path = None
     for file in os.listdir(app.config['MODEL_FOLDER']):
@@ -314,39 +362,49 @@ def predict():
         try:
             with open(model_path, 'rb') as f:
                 model = pickle.load(f)
+            display_info.append("Loaded trained model for prediction")
         except Exception as e:
+            display_info.append(f"Error loading model: {str(e)}")
             return render_template('predict.html', feature_names=model_metadata['feature_names'], 
                                  model_exists=False, error=f'Error loading model: {str(e)}')
     
     if request.method == 'POST' and model_exists and model:
+        display_info.append("Received POST request for prediction")
         # Get input values from form
         input_data = {}
         for feature in model_metadata['feature_names']:
             value = request.form.get(feature, '')
             input_data[feature] = value if value else ('' if model_metadata['is_text_data'] else 0)
+        display_info.append("Collected input data from form")
         
         try:
             # Convert input data to the correct format
             if model_metadata['is_text_data']:
                 vectorizer_path = os.path.join(app.config['MODEL_FOLDER'], 'vectorizer.pkl')
                 if not os.path.exists(vectorizer_path):
+                    display_info.append("Vectorizer not found")
                     return render_template('predict.html', feature_names=model_metadata['feature_names'], 
                                          model_exists=model_exists, error='Vectorizer not found. Please retrain the model.')
                 with open(vectorizer_path, 'rb') as f:
                     vectorizer = pickle.load(f)
+                display_info.append("Loaded vectorizer for text prediction")
                 message = input_data.get('Message', '')
                 if not message:
+                    display_info.append("No message provided for prediction")
                     return render_template('predict.html', feature_names=model_metadata['feature_names'], 
                                          model_exists=model_exists, error='Please provide a message for prediction.')
                 X = vectorizer.transform([message])
+                display_info.append("Transformed input message with vectorizer")
             else:
                 input_df = pd.DataFrame([input_data])
                 categorical_cols = input_df.select_dtypes(include=['object']).columns
                 if len(categorical_cols) > 0:
                     input_df = pd.get_dummies(input_df, columns=categorical_cols)
+                    display_info.append("Applied dummy encoding to categorical input data")
                 
                 # Align with training features
                 input_df = input_df.reindex(columns=model_metadata['feature_names'], fill_value=0)
+                display_info.append("Aligned input data with training feature names")
                 
                 # Load saved scaler
                 scaler_path = os.path.join(app.config['MODEL_FOLDER'], 'scaler.pkl')
@@ -354,24 +412,32 @@ def predict():
                     X = input_df.values
                     if len(X.shape) == 1:
                         X = X.reshape(1, -1)
+                    display_info.append("No scaler found, using raw input data")
                 else:
                     with open(scaler_path, 'rb') as f:
                         scaler = pickle.load(f)
                     X = scaler.transform(input_df)
                     if len(X.shape) == 1:
                         X = X.reshape(1, -1)
+                    display_info.append("Applied scaler to input data")
             
             # Make prediction
             prediction = model.predict(X)[0]
+            display_info.append("Generated prediction")
             if model_metadata['is_text_data']:
                 prediction = 'spam' if prediction == 1 else 'ham'
+                display_info.append("Converted prediction to spam/ham label")
+            display_info.append("Rendering prediction template with result")
             return render_template('predict.html', prediction=prediction, feature_names=model_metadata['feature_names'], 
                                  model_exists=model_exists)
         except Exception as e:
+            display_info.append(f"Prediction error: {str(e)}")
             return render_template('predict.html', feature_names=model_metadata['feature_names'], 
                                  model_exists=model_exists, error=f'Prediction error: {str(e)}')
     
+    display_info.append("Rendering predict template for GET request")
     return render_template('predict.html', feature_names=model_metadata['feature_names'], model_exists=model_exists)
 
 if __name__ == '__main__':
+    display_info.append("Starting Flask application")
     app.run(debug=True)
