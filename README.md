@@ -21,7 +21,6 @@ This project is a web-based **Automated Machine Learning (AutoML) Pipeline** bui
 
 ---
 
-## 🚀 Getting Started
 
 ### 1. Clone the repository and set up the environment
 ```bash
